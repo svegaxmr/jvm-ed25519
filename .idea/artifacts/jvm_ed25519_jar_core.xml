@@ -1,0 +1,8 @@
+<component name="ArtifactManager">
+  <artifact type="jar" name="jvm-ed25519:jar-core">
+    <output-path>$PROJECT_DIR$/out/artifacts/jvm_ed25519_jar_core</output-path>
+    <root id="archive" name="jvm-ed25519-core.jar">
+      <element id="module-output" name="jvm-ed25519" />
+    </root>
+  </artifact>
+</component>
