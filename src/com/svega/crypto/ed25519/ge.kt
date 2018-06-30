@@ -1,5 +1,7 @@
 package com.svega.crypto.ed25519
 
+import com.svega.crypto.common.CryptoOps.load_3
+import com.svega.crypto.common.CryptoOps.load_4
 import com.svega.crypto.ed25519.objects.ge_cached
 import com.svega.crypto.ed25519.objects.ge_p1p1
 import com.svega.crypto.ed25519.objects.ge_p3
@@ -29,7 +31,7 @@ fun slide(r: ByteArray, a: ByteArray) {
     var k: Int
 
     for(i in 0 until 256) {
-        //CONVERT r[i] = 1 & (a[i >> 3] >> (i & 7));
+        //CONVERT r[i] = 1 & (a[i shr 3] shr (i & 7))
         r[i] = (1 and a[i shr 3].toInt().ushr(i and 7)).toByte()
     }
 
@@ -44,7 +46,7 @@ fun slide(r: ByteArray, a: ByteArray) {
                         r[i] = (temp + temp2).toByte()
                         r[i + b] = 0
                     } else if (r[i] - (r[i + b].toInt() shl b) >= -15) {
-                        val temp = (r[i + b].toInt() shl b).toByte();
+                        val temp = (r[i + b].toInt() shl b).toByte()
                         val temp2 = r[i]
                         r[i] = (temp2 - temp).toByte()
                         k = i + b
@@ -188,7 +190,7 @@ var ge_frombytes_negate_vartime_sqrtm1 = intArrayOf(
         //CONVERT #include "ge_frombytes_negate_vartime_sqrtm1.h"
         -32595792, -7943725, 9377950, 3500415, 12389472, -272473, -25146209, -2005654, 326686, 11406482)
 
-fun ge_frombytes_negate_vartime(h: ge_p3, s: ByteArray): Int {
+fun ge_frombytes_negate_vartime(h: ge_p3, s: ByteArray): Boolean {
     val u = IntArray(10)
     val v = IntArray(10)
     val v3 = IntArray(10)
@@ -217,7 +219,8 @@ fun ge_frombytes_negate_vartime(h: ge_p3, s: ByteArray): Int {
     fe_sub(check, vxx, u)    /* vx^2-u */
     if (fe_isnonzero(check) != 0) {
         fe_add(check, vxx, u)  /* vx^2+u */
-        if (fe_isnonzero(check) != 0) return -1
+        if (fe_isnonzero(check) != 0)
+            return false
         fe_mul(h.X, h.X, ge_frombytes_negate_vartime_sqrtm1)
     }
 
@@ -226,7 +229,7 @@ fun ge_frombytes_negate_vartime(h: ge_p3, s: ByteArray): Int {
     }
 
     fe_mul(h.T, h.X, h.Y)
-    return 0
+    return true
 }
 
 fun ge_madd(r: ge_p1p1, p: ge_p3, q: ge_precomp) {
@@ -448,4 +451,203 @@ fun ge_tobytes(s: ByteArray, h: ge_p2) {
     fe_mul(y, h.Y, recip)
     fe_tobytes(s, y)
     s[31] = (s[31].toInt() and 0xFF xor (fe_isnegative(x) shl 7)).toByte()
+}
+
+val fe_d = intArrayOf(-10913610, 13857413, -15372611, 6949391, 114729, -8787816, -6275908, -3247719, -18696448,-12055116)
+val fe_sqrtm1 = intArrayOf(-32595792, -7943725, 9377950, 3500415, 12389472, -272473, -25146209, -2005654, 326686, 11406482)
+
+fun ge_frombytes_vartime(h: ge_p3, s: ByteArray): Int {
+    val u = IntArray(10)
+    val v = IntArray(10)
+    val vxx = IntArray(10)
+    val check = IntArray(10)
+
+    /* From fe_frombytes.c */
+
+    var h0 = load_4(s, 0)
+    var h1 = load_3(s, 4) shl 6
+    var h2 = load_3(s, 7) shl 5
+    var h3 = load_3(s, 10) shl 3
+    var h4 = load_3(s, 13) shl 2
+    var h5 = load_4(s, 16)
+    var h6 = load_3(s, 20) shl 7
+    var h7 = load_3(s, 23) shl 5
+    var h8 = load_3(s, 26) shl 4
+    var h9 = (load_3(s, 29) and 8388607) shl 2
+    var carry0: Long
+    var carry1: Long
+    var carry2: Long
+    var carry3: Long
+    var carry4: Long
+    var carry5: Long
+    var carry6: Long
+    var carry7: Long
+    var carry8: Long
+    var carry9: Long
+
+    /* Validate the number to be canonical */
+    if (h9 == 33554428L && h8 == 268435440L && h7 == 536870880L && h6 == 2147483520L &&
+            h5 == 4294967295L && h4 == 67108860L && h3 == 134217720L && h2 == 536870880L &&
+            h1 == 1073741760L && h0 >= 4294967277L) {
+        return -1
+    }
+
+    carry9 = h9 + (1 shl 24) shr 25
+    h0 += carry9 * 19
+    h9 -= (carry9 shl 25)
+    carry1 = h1 + (1 shl 24) shr 25
+    h2 += carry1
+    h1 -= (carry1 shl 25)
+    carry3 = h3 + (1 shl 24) shr 25
+    h4 += carry3
+    h3 -= (carry3 shl 25)
+    carry5 = h5 + (1 shl 24) shr 25
+    h6 += carry5
+    h5 -= (carry5 shl 25)
+    carry7 = h7 + (1 shl 24) shr 25
+    h8 += carry7
+    h7 -= (carry7 shl 25)
+    carry0 = h0 + (1 shl 25) shr 26
+    h1 += carry0
+    h0 -= (carry0 shl 26)
+    carry2 = h2 + (1 shl 25) shr 26
+    h3 += carry2
+    h2 -= (carry2 shl 26)
+    carry4 = h4 + (1 shl 25) shr 26
+    h5 += carry4
+    h4 -= (carry4 shl 26)
+    carry6 = h6 + (1 shl 25) shr 26
+    h7 += carry6
+    h6 -= (carry6 shl 26)
+    carry8 = h8 + (1 shl 25) shr 26
+    h9 += carry8
+    h8 -= (carry8 shl 26)
+
+    h.Y[0] = h0.toInt()
+    h.Y[1] = h1.toInt()
+    h.Y[2] = h2.toInt()
+    h.Y[3] = h3.toInt()
+    h.Y[4] = h4.toInt()
+    h.Y[5] = h5.toInt()
+    h.Y[6] = h6.toInt()
+    h.Y[7] = h7.toInt()
+    h.Y[8] = h8.toInt()
+    h.Y[9] = h9.toInt()
+
+    /* End fe_frombytes.c */
+
+    fe_1(h.Z)
+    fe_sq(u, h.Y)
+    fe_mul(v, u, fe_d)
+    fe_sub(u, u, h.Z)       /* u = y^2-1 */
+    fe_add(v, v, h.Z)       /* v = dy^2+1 */
+
+    fe_divpowm1(h.X, u, v) /* x = uv^3(uv^7)^((q-5)/8) */
+
+    fe_sq(vxx, h.X)
+    fe_mul(vxx, vxx, v)
+    fe_sub(check, vxx, u)    /* vx^2-u */
+    if (fe_isnonzero(check) != 0) {
+        fe_add(check, vxx, u)  /* vx^2+u */
+        if (fe_isnonzero(check) != 0) {
+            return -1
+        }
+        fe_mul(h.X, h.X, fe_sqrtm1)
+    }
+
+    if (fe_isnegative(h.X) != ((s[31].toInt() shr 7)) and 0xFF) {
+        /* If x = 0, the sign must be positive */
+        if (fe_isnonzero(h.X) == 0) {
+        return -1
+    }
+        fe_neg(h.X, h.X)
+    }
+
+    fe_mul(h.T, h.X, h.Y)
+    return 0
+}
+
+
+fun ge_mul8(r: ge_p1p1, t: ge_p2) {
+    val u = ge_p2()
+    ge_p2_dbl(r, t)
+    ge_p1p1_to_p2(u, r)
+    ge_p2_dbl(r, u)
+    ge_p1p1_to_p2(u, r)
+    ge_p2_dbl(r, u)
+}
+
+fun ge_scalarmult(r: ge_p2, a: ByteArray, A: ge_p3) {
+    val e = ByteArray(64)
+    var carry2: Int
+    val Ai = Array(8, {ge_cached()})
+    val t = ge_p1p1()
+    val u = ge_p3()
+
+    var carry = 0 /* 0..1 */
+    for (i in 0 until 31) {
+        carry += a[i] /* 0..256 */
+        carry2 = (carry + 8) shr 4 /* 0..16 */
+        e[2 * i] = (carry - (carry2 shl 4)).toByte() /* -8..7 */
+        carry = (carry2 + 8) shr 4 /* 0..1 */
+        e[2 * i + 1] = (carry2 - (carry shl 4)).toByte() /* -8..7 */
+    }
+    carry += a[31] /* 0..128 */
+    carry2 = (carry + 8) shr 4 /* 0..8 */
+    e[62] = (carry - (carry2 shl 4)).toByte() /* -8..7 */
+    e[63] = carry2.toByte() /* 0..8 */
+
+    ge_p3_to_cached(Ai[0], A)
+    for (i in 0 until 7) {
+        ge_add(t, A, Ai[i])
+        ge_p1p1_to_p3(u, t)
+        ge_p3_to_cached(Ai[i + 1], u)
+    }
+
+    ge_p2_0(r)
+    for (i in 63 downTo 0) {
+        val b = e[i]
+        val bnegative = negative(b)
+        val babs = Math.abs(bnegative).toByte()
+        val cur = ge_cached()
+        val minuscur = ge_cached()
+        ge_p2_dbl(t, r)
+        ge_p1p1_to_p2(r, t)
+        ge_p2_dbl(t, r)
+        ge_p1p1_to_p2(r, t)
+        ge_p2_dbl(t, r)
+        ge_p1p1_to_p2(r, t)
+        ge_p2_dbl(t, r)
+        ge_p1p1_to_p3(u, t)
+        ge_cached_0(cur)
+        ge_cached_cmov(cur, Ai[0], equal(babs, 1))
+        ge_cached_cmov(cur, Ai[1], equal(babs, 2))
+        ge_cached_cmov(cur, Ai[2], equal(babs, 3))
+        ge_cached_cmov(cur, Ai[3], equal(babs, 4))
+        ge_cached_cmov(cur, Ai[4], equal(babs, 5))
+        ge_cached_cmov(cur, Ai[5], equal(babs, 6))
+        ge_cached_cmov(cur, Ai[6], equal(babs, 7))
+        ge_cached_cmov(cur, Ai[7], equal(babs, 8))
+        fe_copy(minuscur.YplusX, cur.YminusX)
+        fe_copy(minuscur.YminusX, cur.YplusX)
+        fe_copy(minuscur.Z, cur.Z)
+        fe_neg(minuscur.T2d, cur.T2d)
+        ge_cached_cmov(cur, minuscur, bnegative)
+        ge_add(t, u, cur)
+        ge_p1p1_to_p2(r, t)
+    }
+}
+
+fun ge_cached_0(r: ge_cached) {
+    fe_1(r.YplusX)
+    fe_1(r.YminusX)
+    fe_1(r.Z)
+    fe_0(r.T2d)
+}
+
+fun ge_cached_cmov(t: ge_cached, u: ge_cached, b: Int) {
+    fe_cmov(t.YplusX, u.YplusX, b)
+    fe_cmov(t.YminusX, u.YminusX, b)
+    fe_cmov(t.Z, u.Z, b)
+    fe_cmov(t.T2d, u.T2d, b)
 }

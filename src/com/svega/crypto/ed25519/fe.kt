@@ -1137,3 +1137,70 @@ fun fe_tobytes(s: ByteArray, h: IntArray) {
     s[30] = (h9 shr 10).toByte()
     s[31] = (h9 shr 18).toByte()
 }
+
+fun fe_divpowm1(r: IntArray, u: IntArray, v: IntArray) {
+    val v3 = IntArray(10)
+    val uv7 = IntArray(10)
+    val t0 = IntArray(10)
+    val t1 = IntArray(10)
+    val t2 = IntArray(10)
+
+    fe_sq(v3, v);
+    fe_mul(v3, v3, v); /* v3 = v^3 */
+    fe_sq(uv7, v3);
+    fe_mul(uv7, uv7, v);
+    fe_mul(uv7, uv7, u); /* uv7 = uv^7 */
+
+    /*fe_pow22523(uv7, uv7);*/
+
+    /* From fe_pow22523.c */
+
+    fe_sq(t0, uv7);
+    fe_sq(t1, t0);
+    fe_sq(t1, t1);
+    fe_mul(t1, uv7, t1);
+    fe_mul(t0, t0, t1);
+    fe_sq(t0, t0);
+    fe_mul(t0, t1, t0);
+    fe_sq(t1, t0);
+    for (i in 0 until 4) {
+        fe_sq(t1, t1);
+    }
+    fe_mul(t0, t1, t0);
+    fe_sq(t1, t0);
+    for (i in 0 until 9) {
+        fe_sq(t1, t1);
+    }
+    fe_mul(t1, t1, t0);
+    fe_sq(t2, t1);
+    for (i in 0 until 19) {
+        fe_sq(t2, t2);
+    }
+    fe_mul(t1, t2, t1);
+    for (i in 0 until 10) {
+        fe_sq(t1, t1);
+    }
+    fe_mul(t0, t1, t0);
+    fe_sq(t1, t0);
+    for (i in 0 until 49) {
+        fe_sq(t1, t1);
+    }
+    fe_mul(t1, t1, t0);
+    fe_sq(t2, t1);
+    for (i in 0 until 99) {
+        fe_sq(t2, t2);
+    }
+    fe_mul(t1, t2, t1);
+    for (i in 0 until 50) {
+        fe_sq(t1, t1);
+    }
+    fe_mul(t0, t1, t0);
+    fe_sq(t0, t0);
+    fe_sq(t0, t0);
+    fe_mul(t0, t0, uv7);
+
+    /* End fe_pow22523.c */
+    /* t0 = (uv^7)^((q-5)/8) */
+    fe_mul(t0, t0, v3);
+    fe_mul(r, t0, u); /* u^(m+1)v^(-(m+1)) */
+}
