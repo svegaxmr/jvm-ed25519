@@ -2,7 +2,6 @@
   <library name="jvm-crypto-core">
     <CLASSES>
       <root url="jar://$PROJECT_DIR$/lib/jvm-crypto-core.jar!/" />
-      <root url="jar://$PROJECT_DIR$/lib/svega-common-utils-core.jar!/" />
     </CLASSES>
     <JAVADOC />
     <SOURCES />
